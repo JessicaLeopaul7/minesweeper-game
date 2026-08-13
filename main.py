@@ -5,15 +5,15 @@ from collections import deque
 import pygame
 import asyncio
 
+# --- CONFIGURATION & CONSTANTS ---
 ROWS, COLS = 9, 9
 NUM_MINES = 10
 
-TILE_SIZE = 34
+TILE_SIZE = 36
 BEVEL_THICK = 3
 PADDING = 12
 
 STEP_DELAY = 600
-DOUBLE_TAP_DELAY = 250  # milliseconds window for double tap to flag
 
 BOARD_W = COLS * TILE_SIZE
 BOARD_H = ROWS * TILE_SIZE
@@ -292,42 +292,41 @@ async def main():
     pygame.display.set_caption("Minesweeper")
     clock = pygame.time.Clock()
 
-    font_title = pygame.font.SysFont("Arial", 16, bold=True)
-    font_status = pygame.font.SysFont("Arial", 13, bold=True)
-    font_btn = pygame.font.SysFont("Arial", 11, bold=True)
-    font_lcd = pygame.font.SysFont("Consolas", 22, bold=True)
-    font_tile = pygame.font.SysFont("Consolas", 22, bold=True)
-    font_rules_text = pygame.font.SysFont("Arial", 12)
-    font_rules_bold = pygame.font.SysFont("Arial", 12, bold=True)
+    # Browser & Pygbag Cross-Platform Safe Default Fonts
+    font_title = pygame.font.Font(None, 22)
+    font_status = pygame.font.Font(None, 18)
+    font_btn = pygame.font.Font(None, 16)
+    font_lcd = pygame.font.Font(None, 24)
+    font_tile = pygame.font.Font(None, 24)
+    font_rules_text = pygame.font.Font(None, 16)
 
     board = MinesweeperBoard()
     solver = MinesweeperSolver(board)
     auto_play = False
     show_rules = False
+    flag_mode = False  # Toggle for touch/mobile devices
     last_step_time = 0
-    pending_tap = None  # Stores (row, col, timestamp) for double-tap tracking
 
     y_cursor = PADDING
-
     title_bar_y = y_cursor
     y_cursor += TITLE_BAR_H
 
-    # Top Right Rule Button & Rules Modal Layout
-    btn_rules = pygame.Rect(WIDTH - PADDING - 55, title_bar_y, 55, 22)
-    modal_rect = pygame.Rect(18, 50, WIDTH - 36, HEIGHT - 70)
+    # Controls Layout
+    btn_rules = pygame.Rect(WIDTH - PADDING - 60, title_bar_y, 60, 22)
+    modal_rect = pygame.Rect(16, 45, WIDTH - 32, HEIGHT - 60)
     btn_close_rules = pygame.Rect(modal_rect.right - 26, modal_rect.top + 6, 20, 20)
 
     header_panel_rect = pygame.Rect(PADDING, y_cursor, BOARD_W, HEADER_PANEL_H)
     
     btn_y = header_panel_rect.centery - 13
-    btn_step = pygame.Rect(header_panel_rect.left + 8, btn_y, 52, 26)
-    btn_auto = pygame.Rect(header_panel_rect.left + 66, btn_y, 75, 26)
-    btn_reset = pygame.Rect(header_panel_rect.left + 147, btn_y, 52, 26)
+    btn_mode = pygame.Rect(header_panel_rect.left + 6, btn_y, 52, 26)
+    btn_step = pygame.Rect(header_panel_rect.left + 62, btn_y, 44, 26)
+    btn_auto = pygame.Rect(header_panel_rect.left + 110, btn_y, 58, 26)
+    btn_reset = pygame.Rect(header_panel_rect.left + 172, btn_y, 48, 26)
 
-    lcd_mines_rect = pygame.Rect(header_panel_rect.right - 62, header_panel_rect.centery - 15, 54, 30)
+    lcd_mines_rect = pygame.Rect(header_panel_rect.right - 54, header_panel_rect.centery - 15, 48, 30)
 
     y_cursor += HEADER_PANEL_H + VERTICAL_GAP
-
     board_rect = pygame.Rect(PADDING, y_cursor, BOARD_W, BOARD_H)
 
     running = True
@@ -335,14 +334,6 @@ async def main():
         current_time = pygame.time.get_ticks()
         mouse_pos = pygame.mouse.get_pos()
         mouse_pressed = pygame.mouse.get_pressed()
-
-        # Handle pending single tap reveal timeout
-        if pending_tap:
-            pr, pc, tap_time = pending_tap
-            if current_time - tap_time > DOUBLE_TAP_DELAY:
-                if not board.game_over:
-                    board.reveal(pr, pc)
-                pending_tap = None
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -359,17 +350,17 @@ async def main():
                     auto_play = False
                     continue
 
-                if btn_step.collidepoint(event.pos):
-                    pending_tap = None
+                if btn_mode.collidepoint(event.pos):
+                    flag_mode = not flag_mode
+
+                elif btn_step.collidepoint(event.pos):
                     solver.solve_step()
 
                 elif btn_auto.collidepoint(event.pos):
-                    pending_tap = None
                     auto_play = not auto_play
                     last_step_time = current_time
 
                 elif btn_reset.collidepoint(event.pos):
-                    pending_tap = None
                     board = MinesweeperBoard()
                     solver = MinesweeperSolver(board)
                     auto_play = False
@@ -380,19 +371,18 @@ async def main():
                     r = (y - board_rect.top) // TILE_SIZE
 
                     if 0 <= r < ROWS and 0 <= c < COLS:
-                        if event.button == 3:  # Right Click
-                            pending_tap = None
+                        # Right click always flags
+                        if event.button == 3:
                             board.toggle_flag(r, c)
-                        elif event.button == 1:  # Left Click / Touch Tap
-                            if (r, c) in board.flags:
+                        # Left click / touch tap depends on mode toggle
+                        elif event.button == 1:
+                            if flag_mode:
                                 board.toggle_flag(r, c)
-                                pending_tap = None
-                            elif pending_tap and pending_tap[0] == r and pending_tap[1] == c:
-                                if current_time - pending_tap[2] <= DOUBLE_TAP_DELAY:
-                                    board.toggle_flag(r, c)
-                                    pending_tap = None
                             else:
-                                pending_tap = (r, c, current_time)
+                                if (r, c) in board.flags:
+                                    board.toggle_flag(r, c)
+                                else:
+                                    board.reveal(r, c)
 
         if auto_play and not board.game_over and not show_rules:
             if current_time - last_step_time >= STEP_DELAY:
@@ -400,13 +390,12 @@ async def main():
                 last_step_time = current_time
 
         screen.fill(COLOR_BG)
-
         draw_3d_bevel(screen, (0, 0, WIDTH, HEIGHT), raised=True, thick=BEVEL_THICK)
 
         title_surf = font_title.render("Minesweeper", True, COLOR_BLACK)
-        screen.blit(title_surf, (PADDING, title_bar_y))
+        screen.blit(title_surf, (PADDING, title_bar_y + 2))
 
-        # Render Status Text
+        # Status Label
         status_text = "Playing"
         status_color = COLOR_STATUS_PLAYING
         if board.won:
@@ -417,22 +406,24 @@ async def main():
             status_color = COLOR_STATUS_LOST
 
         status_surf = font_status.render(status_text, True, status_color)
-        screen.blit(status_surf, (btn_rules.left - status_surf.get_width() - 8, title_bar_y + 3))
+        screen.blit(status_surf, (btn_rules.left - status_surf.get_width() - 6, title_bar_y + 4))
 
-        # Render Rules Button
+        # Rules Button
         is_rules_hover = btn_rules.collidepoint(mouse_pos)
         pygame.draw.rect(screen, COLOR_BG, btn_rules)
         draw_3d_bevel(screen, btn_rules, raised=not (show_rules or (is_rules_hover and mouse_pressed[0])), thick=2)
         r_lbl = font_btn.render("? Rules", True, COLOR_BLACK)
         screen.blit(r_lbl, r_lbl.get_rect(center=btn_rules.center))
 
-        # Header Panel Controls
+        # Controls Panel
         pygame.draw.rect(screen, COLOR_BG, header_panel_rect)
         draw_3d_bevel(screen, header_panel_rect, raised=False, thick=BEVEL_THICK)
 
+        mode_label = "FLAG" if flag_mode else "DIG"
         buttons_data = [
+            (btn_mode, mode_label, flag_mode),
             (btn_step, "Step", False),
-            (btn_auto, "Pause" if auto_play else "Auto Solve", auto_play),
+            (btn_auto, "Pause" if auto_play else "Auto", auto_play),
             (btn_reset, "Reset", False)
         ]
         for btn, label, is_active in buttons_data:
@@ -444,7 +435,7 @@ async def main():
 
         draw_lcd_display(screen, lcd_mines_rect, NUM_MINES - len(board.flags), font_lcd)
 
-        # Game Board
+        # Game Grid
         pygame.draw.rect(screen, COLOR_BG, board_rect)
         draw_3d_bevel(screen, board_rect, raised=False, thick=BEVEL_THICK)
 
@@ -480,17 +471,17 @@ async def main():
                             pygame.draw.rect(screen, COLOR_RED, tile_rect)
                         draw_mine(screen, tile_rect.center)
 
-        # Render Rules Overlay Modal
+        # Rules Modal
         if show_rules:
             dim_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            dim_overlay.fill((0, 0, 0, 140))
+            dim_overlay.fill((0, 0, 0, 150))
             screen.blit(dim_overlay, (0, 0))
 
             pygame.draw.rect(screen, COLOR_BG, modal_rect)
             draw_3d_bevel(screen, modal_rect, raised=True, thick=3)
 
-            title_rules = font_title.render("Game Rules & Help", True, COLOR_BLACK)
-            screen.blit(title_rules, (modal_rect.left + 12, modal_rect.top + 10))
+            title_rules = font_title.render("Game Rules & Guide", True, COLOR_BLACK)
+            screen.blit(title_rules, (modal_rect.left + 10, modal_rect.top + 8))
 
             pygame.draw.rect(screen, COLOR_BG, btn_close_rules)
             draw_3d_bevel(screen, btn_close_rules, raised=True, thick=2)
@@ -498,25 +489,22 @@ async def main():
             screen.blit(x_surf, x_surf.get_rect(center=btn_close_rules.center))
 
             rules_content = [
-                ("• Single Tap / Left Click:", True),
-                ("  Reveals a hidden tile.", False),
-                ("• Double Tap / Right Click:", True),
-                ("  Places or removes a mine flag.", False),
-                ("• Step Button:", True),
-                ("  Algorithm completes 1 logical move.", False),
-                ("• Auto Solve:", True),
-                ("  Runs constraint satisfaction solver.", False),
-                ("• Reset:", True),
-                ("  Generates a brand new board.", False)
+                "Controls:",
+                "• Left Click / Tap: Reveals tile",
+                "• Right Click: Places mine flag",
+                "• DIG / FLAG Button: Toggle mode",
+                "  for easy touch/mobile flagging.",
+                "",
+                "Auto Solver:",
+                "• Step: Complete 1 CSP step",
+                "• Auto: Toggle automated solver"
             ]
 
-            line_y = modal_rect.top + 38
-            for line_text, is_bold in rules_content:
-                f = font_rules_bold if is_bold else font_rules_text
-                col = COLOR_BLACK if is_bold else COLOR_DARK_SHADOW
-                txt_s = f.render(line_text, True, col)
-                screen.blit(txt_s, (modal_rect.left + 12, line_y))
-                line_y += 18
+            line_y = modal_rect.top + 34
+            for line_text in rules_content:
+                txt_s = font_rules_text.render(line_text, True, COLOR_BLACK if ":" in line_text else COLOR_DARK_SHADOW)
+                screen.blit(txt_s, (modal_rect.left + 10, line_y))
+                line_y += 17
 
         pygame.display.flip()
         clock.tick(60)
