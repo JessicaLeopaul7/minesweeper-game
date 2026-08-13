@@ -3,7 +3,7 @@ import random
 import math
 from collections import deque
 import pygame
-import asyncio/
+import asyncio
 
 ROWS, COLS = 9, 9
 NUM_MINES = 10
