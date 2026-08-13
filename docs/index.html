@@ -23,7 +23,7 @@ from pathlib import Path
 # do not rename
 async def custom_site():
     import embed
-    platform.document.body.style.background = "#7f7f7f"
+    platform.document.body.style.background = "#008080"
 
     platform.window.transfer.hidden = true
     platform.window.canvas.style.visibility = "visible"
@@ -149,7 +149,7 @@ config = {
     user_canvas : 0,
     user_canvas_managed : 0,
     gui_divider : 2,
-    ume_block : 0,
+    ume_block : 1,
     can_close : 0,
     archive : "minesweeper",
     gui_debug : 2,
@@ -190,13 +190,20 @@ function show_infobox() {
     <link rel="icon" type="image/png" href="favicon.png" sizes="16x16">
 
     <style>
+        body {
+            font-family: 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+            margin: 0;
+            padding: 0;
+            background-color: #008080 !important; /* Windows 95 Desktop Teal */
+        }
+
         #status {
             display: inline-block;
             vertical-align: top;
             margin-top: 20px;
             margin-left: 30px;
             font-weight: bold;
-            color: rgb(120, 120, 120);
+            color: #ffffff;
         }
 
         #progress {
@@ -204,21 +211,26 @@ function show_infobox() {
             width: 300px;
         }
 
+        /* Windows 95 Retro Dialog Styling for Infobox */
         #infobox {
             position: fixed; /* center relative to viewport */
-            background: green;
-            color: blue;
-            font-weight: bold;
-            padding: 12px 24px;
- /*           display: none; */
+            background: #c0c0c0 !important; /* Win95 Gray */
+            color: #000000 !important;      /* Clean Black Text */
+            font-family: 'Tahoma', 'Segoe UI', 'Arial', sans-serif !important;
+            font-size: 14px !important;
+            font-weight: bold !important;
+            padding: 14px 28px !important;
+            border: 2px solid !important;
+            border-color: #ffffff #808080 #808080 #ffffff !important; /* 3D Raised Bevel */
+            box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.4) !important;
             z-index: 999999;
         }
+
         div.emscripten { text-align: center; }
         div.emscripten_border { border: 1px solid black; }
         div.thick_border { border: 4px solid black; }
 
-        /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
-        /* average size of droid screen 470dp x 320dp  */
+        /* Canvas element */
         canvas.emscripten {
             border: 0px none;
             background-color: transparent;
@@ -234,13 +246,6 @@ function show_infobox() {
             bottom: 0;
             left: 0;
             right: 0;
-        }
-
-        body {
-            font-family: arial;
-            margin: 0;
-            padding: none;
-            background-color:powderblue;
         }
 
         .topright{
@@ -275,15 +280,6 @@ function show_infobox() {
         }
     </style>
 
-    <script>
-/*
-        if (navigator.serviceWorker)
-            navigator.serviceWorker.register("https://pygame-web.github.io/cdn/0.9.3/pygbag0.9.3.js")
-        else
-            console.warn("Service workers not supported")
-*/
-    </script>
-
     <script src="https://pygame-web.github.io/cdn/0.9.3//browserfs.min.js"></script>
 
 </head>
@@ -291,7 +287,6 @@ function show_infobox() {
 <body>
 
     <div id="transfer" align=center>
-<!--        <div class="spinner" id='spinner'></div> -->
         <div class="emscripten" id="status">Downloading...</div>
         <div class="emscripten">
             <progress value="0" max="100" id="progress"></progress>
@@ -378,8 +373,6 @@ frameborder="1"
     }
 
     async function custom_onload(debug_hidden) {
-        // this is called before anything python is loaded
-        // make your js customization here
         console.log(__FILE__, "custom_onload")
 
         pyconsole.hidden = debug_hidden
@@ -392,20 +385,16 @@ frameborder="1"
     }
 
     function custom_prerun(){
-        // no python main and no (MEMFS + VFS) yet.
         console.log(__FILE__, "custom_prerun")
 
     }
 
     function custom_postrun(){
-        // python main and no VFS filesystem yet.
         console.log(__FILE__, "custom_postrun")
 
     }
 
     function debug() {
-        // allow to gain access to dev tools from js console
-        // but only on desktop. difficult to reach when in iframe
         python.config.debug = true
         custom_onload(false)
         Module.PyRun_SimpleString("shell.uptime()")
@@ -417,8 +406,7 @@ frameborder="1"
     }
 
     function info_online(url) {
-        // display info about current APK
-        fetch( url /*, options */)
+        fetch( url )
             .then((response) => response.text())
             .then((html) => {
                 info_inline(html);
