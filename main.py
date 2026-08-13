@@ -292,29 +292,28 @@ async def main():
     pygame.display.set_caption("Minesweeper")
     clock = pygame.time.Clock()
 
-    # Browser & Pygbag Cross-Platform Safe Default Fonts
     font_title = pygame.font.Font(None, 22)
     font_status = pygame.font.Font(None, 18)
     font_btn = pygame.font.Font(None, 16)
     font_lcd = pygame.font.Font(None, 24)
     font_tile = pygame.font.Font(None, 24)
-    font_rules_text = pygame.font.Font(None, 16)
+    font_rules_text = pygame.font.Font(None, 17)
 
     board = MinesweeperBoard()
     solver = MinesweeperSolver(board)
     auto_play = False
     show_rules = False
-    flag_mode = False  # Toggle for touch/mobile devices
+    flag_mode = False
     last_step_time = 0
 
     y_cursor = PADDING
     title_bar_y = y_cursor
     y_cursor += TITLE_BAR_H
 
-    # Controls Layout
-    btn_rules = pygame.Rect(WIDTH - PADDING - 60, title_bar_y, 60, 22)
-    modal_rect = pygame.Rect(16, 45, WIDTH - 32, HEIGHT - 60)
-    btn_close_rules = pygame.Rect(modal_rect.right - 26, modal_rect.top + 6, 20, 20)
+    # Top Right "Rules" Button
+    btn_rules = pygame.Rect(WIDTH - PADDING - 50, title_bar_y, 50, 22)
+    modal_rect = pygame.Rect(20, 50, WIDTH - 40, HEIGHT - 70)
+    btn_close_rules = pygame.Rect(modal_rect.right - 24, modal_rect.top + 6, 18, 18)
 
     header_panel_rect = pygame.Rect(PADDING, y_cursor, BOARD_W, HEADER_PANEL_H)
     
@@ -371,11 +370,9 @@ async def main():
                     r = (y - board_rect.top) // TILE_SIZE
 
                     if 0 <= r < ROWS and 0 <= c < COLS:
-                        # Right click always flags
-                        if event.button == 3:
+                        if event.button == 3:  # Right Click
                             board.toggle_flag(r, c)
-                        # Left click / touch tap depends on mode toggle
-                        elif event.button == 1:
+                        elif event.button == 1:  # Left Click / Tap
                             if flag_mode:
                                 board.toggle_flag(r, c)
                             else:
@@ -408,14 +405,14 @@ async def main():
         status_surf = font_status.render(status_text, True, status_color)
         screen.blit(status_surf, (btn_rules.left - status_surf.get_width() - 6, title_bar_y + 4))
 
-        # Rules Button
+        # Top Right "Rules" Button
         is_rules_hover = btn_rules.collidepoint(mouse_pos)
         pygame.draw.rect(screen, COLOR_BG, btn_rules)
         draw_3d_bevel(screen, btn_rules, raised=not (show_rules or (is_rules_hover and mouse_pressed[0])), thick=2)
-        r_lbl = font_btn.render("? Rules", True, COLOR_BLACK)
+        r_lbl = font_btn.render("Rules", True, COLOR_BLACK)
         screen.blit(r_lbl, r_lbl.get_rect(center=btn_rules.center))
 
-        # Controls Panel
+        # Header Panel
         pygame.draw.rect(screen, COLOR_BG, header_panel_rect)
         draw_3d_bevel(screen, header_panel_rect, raised=False, thick=BEVEL_THICK)
 
@@ -471,7 +468,7 @@ async def main():
                             pygame.draw.rect(screen, COLOR_RED, tile_rect)
                         draw_mine(screen, tile_rect.center)
 
-        # Rules Modal
+        # Simplified Rules Modal
         if show_rules:
             dim_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             dim_overlay.fill((0, 0, 0, 150))
@@ -480,8 +477,8 @@ async def main():
             pygame.draw.rect(screen, COLOR_BG, modal_rect)
             draw_3d_bevel(screen, modal_rect, raised=True, thick=3)
 
-            title_rules = font_title.render("Game Rules & Guide", True, COLOR_BLACK)
-            screen.blit(title_rules, (modal_rect.left + 10, modal_rect.top + 8))
+            title_rules = font_title.render("Rules", True, COLOR_BLACK)
+            screen.blit(title_rules, (modal_rect.left + 12, modal_rect.top + 8))
 
             pygame.draw.rect(screen, COLOR_BG, btn_close_rules)
             draw_3d_bevel(screen, btn_close_rules, raised=True, thick=2)
@@ -489,22 +486,16 @@ async def main():
             screen.blit(x_surf, x_surf.get_rect(center=btn_close_rules.center))
 
             rules_content = [
-                "Controls:",
                 "• Left Click / Tap: Reveals tile",
-                "• Right Click: Places mine flag",
-                "• DIG / FLAG Button: Toggle mode",
-                "  for easy touch/mobile flagging.",
-                "",
-                "Auto Solver:",
-                "• Step: Complete 1 CSP step",
-                "• Auto: Toggle automated solver"
+                "• Right Click: Places flag",
+                "• DIG / FLAG: Toggle mode"
             ]
 
-            line_y = modal_rect.top + 34
+            line_y = modal_rect.top + 38
             for line_text in rules_content:
-                txt_s = font_rules_text.render(line_text, True, COLOR_BLACK if ":" in line_text else COLOR_DARK_SHADOW)
-                screen.blit(txt_s, (modal_rect.left + 10, line_y))
-                line_y += 17
+                txt_s = font_rules_text.render(line_text, True, COLOR_BLACK)
+                screen.blit(txt_s, (modal_rect.left + 12, line_y))
+                line_y += 24
 
         pygame.display.flip()
         clock.tick(60)
